@@ -1,0 +1,94 @@
+services:
+
+  zipkin-all-in-one:
+    image: openzipkin/zipkin:latest
+    environment:
+      - JAVA_OPTS=-Xms1024m -Xmx1024m -XX:+ExitOnOutOfMemoryError
+    restart: always
+    ports:
+      - "9411:9411"
+
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+
+  prometheus:
+    container_name: prometheus-goexpert
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./.docker/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./.docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension      
+      - "4317:4317"   # OTLP gRPC receiver
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one      
+
+  grafana:
+    container_name: grafana-goexpert
+    image: grafana/grafana:latest
+    restart: always
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+  client:
+    container_name: client
+    build:
+      context: ./client
+    environment:
+      - TITLE=Microservice Demo
+      - CONTENT=This is a demo of a microservice
+      - EXTERNAL_CALL_URL=http://weather-otel-server:8181
+      - EXTERNAL_CALL_METHOD=GET
+      - REQUEST_NAME_OTEL=microservice-client-request
+      - OTEL_SERVICE_NAME=microservice-client
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - HTTP_PORT=:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - prometheus
+      - otel-collector
+
+  orchestrator:
+    container_name: orchestrator
+    environment:
+      - TITLE=Microservice Demo 2
+      - CONTENT=This is a demo of a microservice
+      - EXTERNAL_CALL_URL=http://orchestrator:8181
+      - EXTERNAL_CALL_METHOD=GET
+      - REQUEST_NAME_OTEL=microservice-server-request
+      - OTEL_SERVICE_NAME=microservice-server
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - API_KEY=796b915fc8b6480e845142924242910
+      - HTTP_PORT=:8181
+    build:
+      context: ./orchestrator
+    ports:
+      - "8181:8181"
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+      - prometheus
+      - otel-collector
