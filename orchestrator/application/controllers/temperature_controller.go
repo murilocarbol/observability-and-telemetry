@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -26,16 +25,8 @@ func (c *TemperatureController) GetTemperature(ctx *fiber.Ctx) error {
 	log.Printf("Iniciando processamento Controller")
 
 	cep := ctx.Query("cep")
-	// clientContext := ctx.Query("ctx")
 
-	log.Printf("ctx: %v", ctx.Query("ctx"))
-
-	var context context.Context
-	ctx.QueryParser(&context)
-
-	log.Printf("CONTEXT: %v", context)
-
-	_, spanInicial := c.otelTracer.Start(context, "Controller-GetTemperature-Span")
+	context, spanInicial := c.otelTracer.Start(ctx.Context(), "Controller-GetTemperature-Span")
 	defer spanInicial.End()
 
 	if cep == "" || len(cep) != 8 {
