@@ -39,6 +39,12 @@ func (c *TemperatureController) PostTemperature(ctx *fiber.Ctx) error {
 
 	log.Printf("request %v", request)
 
+	if request.Cep == "" || len(request.Cep) != 8 {
+		return ctx.Status(422).JSON(response.ErrorResponse{
+			Error: "invalid zipcode",
+		})
+	}
+
 	temperatures, err := c.temperatureUseCase.GetTemperature(context, request.Cep)
 	if err != nil {
 		if err.Error() == "zipcode not found" {
