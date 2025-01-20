@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/murilocarbol/observability-and-telemetry/application/client/response"
 	"github.com/murilocarbol/observability-and-telemetry/application/model"
@@ -59,6 +60,10 @@ func (v OrchestradorClient) CallOrchestrador(ctx context.Context, cep string) (*
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if strings.Contains(string(body), "error") {
+		return nil, fmt.Errorf(string(body))
 	}
 
 	var response response.OrchestradorResponse

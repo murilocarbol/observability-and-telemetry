@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/murilocarbol/observability-and-telemetry/application/controllers/response"
@@ -37,7 +38,7 @@ func (c *TemperatureController) GetTemperature(ctx *fiber.Ctx) error {
 
 	temperatures, err := c.temperatureUseCase.GetTemperature(context, cep)
 	if err != nil {
-		if err.Error() == "zipcode not found" {
+		if strings.Contains(err.Error(), "not found") {
 			return ctx.Status(404).JSON(response.ErrorResponse{Error: err.Error()})
 		}
 		return ctx.Status(500).JSON(response.ErrorResponse{
